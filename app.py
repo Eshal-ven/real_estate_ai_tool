@@ -133,7 +133,8 @@ if st.button("📜 Show Past Property Analyses"):
             st.json(h)
     else:
         st.info("No past analysis found yet.")
-        st.header("📬 Contact Me")
+    
+st.header("📬 Contact Me")
 
 with st.form(key='contact_form 2'):
     email = st.text_input("Your Email")
@@ -146,6 +147,5 @@ with st.form(key='contact_form 2'):
             # (Optional) You can save this data later or send via email
         else:
             st.error("❗ Please fill in both email and message fields.")
-
 
 
