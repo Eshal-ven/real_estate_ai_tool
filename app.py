@@ -119,7 +119,7 @@ if csv_file:
 
 
 st.subheader("📧 Stay Connected")
-with st.form("contact_form"):
+with st.form("contact_form 1"):
     email = st.text_input("Enter your email to get reports or updates")
     submitted = st.form_submit_button("Submit")
     if submitted:
