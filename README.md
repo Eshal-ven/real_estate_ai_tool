@@ -50,10 +50,14 @@ Built for real estate investors, data lovers, and anyone serious about making sm
 
 ---
 
-## 🔧 Getting Started
-
-### Step 1: Clone the Repo
-```bash
-git clone https://github.com/yourusername/real_estate_ai_tool.git
+# Step 1: Clone the repo
+git clone https://github.com/eshal-ven/real_estate_ai_tool.git
 cd real_estate_ai_tool
+
+# Step 2: Install required libraries
+pip install -r requirements.txt
+
+# Step 3: Run the Streamlit app
+streamlit run app.py
+
 
