@@ -3,7 +3,7 @@
 Analyze, compare, and export your property investments using this interactive, intelligent Streamlit app.  
 Built for real estate investors, data lovers, and anyone serious about making smart property decisions.
 
-**Live Demo**: [Streamlit App](https://eshal-ven-real-estate-ai-tool.streamlit.app)
+**Live Demo**: [Streamlit App](https://realestateaitool.streamlit.app)
   
 📄 **Download Report**: Generate a custom investment report in PDF
 
