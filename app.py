@@ -1,151 +1,119 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import requests
+import folium
+from folium.plugins import MarkerCluster
+from streamlit_folium import st_folium
 from fpdf import FPDF
-import io
+from io import BytesIO
+import base64
 
+# ---------------- API KEYS ----------------
+EXCHANGE_API_KEY = "6765835acf37d023c7ca3f8a"  # ExchangeRate API
+OPENCAGE_API_KEY = "b7ff050f08204f8abb29020b73fffdf5"  # OpenCage Geocoding
+GEOAPIFY_API_KEY = "17c2750503544d329fd46895ff1e6ede"  # Geoapify for Map Tiles
 
-def get_market_data(location):
-    city = location.lower()
-    if any(term in city for term in ["austin", "nashville", "denver", "941", "787"]):
-        return {"rent_per_sqft": 2.5, "price_per_sqft": 350, "demand": "High", "risk": "Low"}
-    elif any(term in city for term in ["tulsa", "fresno", "charlotte", "606", "750"]):
-        return {"rent_per_sqft": 1.8, "price_per_sqft": 250, "demand": "Medium", "risk": "Medium"}
-    else:
-        return {"rent_per_sqft": 1.2, "price_per_sqft": 150, "demand": "Low", "risk": "High"}
+# ---------------- CURRENCY CONVERSION ----------------
+@st.cache_data
+def get_conversion_rates(base="USD"):
+    url = f"https://v6.exchangerate-api.com/v6/{EXCHANGE_API_KEY}/latest/{base}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json().get("conversion_rates", {})
+    except:
+        st.warning("Using fallback currency rates.")
+        return {"USD": 1, "PKR": 278, "EUR": 0.91, "GBP": 0.78}
 
+# ---------------- GEOCODING LOCATION ----------------
+def geocode_location(location):
+    url = f"https://api.opencagedata.com/geocode/v1/json?q={location}&key={OPENCAGE_API_KEY}"
+    try:
+        res = requests.get(url)
+        res.raise_for_status()
+        data = res.json()
+        if data['results']:
+            geometry = data['results'][0]['geometry']
+            return geometry['lat'], geometry['lng']
+    except:
+        st.error("Failed to geocode the location.")
+        return None, None
 
-def real_estate_analysis(price, expected_rent, annual_expenses, downpayment, location, sqft):
-    market = get_market_data(location)
-    est_rent = market["rent_per_sqft"] * sqft
-    est_price = market["price_per_sqft"] * sqft
-    annual_income = expected_rent * 12
-    net_operating_income = annual_income - annual_expenses
-    cash_flow = net_operating_income
-    cap_rate = (net_operating_income / price) * 100
-    roi = (cash_flow / price) * 100
-    cash_on_cash = (cash_flow / downpayment) * 100
-
-    recommendation = "Buy" if cash_on_cash >= 10 else "Hold" if cash_on_cash >= 5 else "Avoid"
-
-    return {
-        "ROI %": round(roi, 2),
-        "Cap Rate %": round(cap_rate, 2),
-        "Cash-on-Cash Return %": round(cash_on_cash, 2),
-        "Recommendation": recommendation,
-        "Market Rent Estimate ($/mo)": round(est_rent, 2),
-        "Market Price Estimate": round(est_price, 2),
-        "Demand Score": market["demand"],
-        "Risk Score": market["risk"]
-    }
-
-
-def generate_pdf(results):
+# ---------------- PDF GENERATION ----------------
+def generate_pdf(investment, roi, location):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, txt="Real Estate Investment Report", ln=True, align="C")
     pdf.ln(10)
-    for key, value in results.items():
-        pdf.cell(200, 10, txt=f"{key}: {value}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+    pdf.multi_cell(0, 10, f"Investment Amount: {investment}\nLocation: {location}\nROI: {roi:.2f}%")
+    buffer = BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    b64 = base64.b64encode(buffer.read()).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="report.pdf">Download PDF Report</a>'
+    return href
 
+# ---------------- STREAMLIT APP ----------------
+st.set_page_config(page_title="Real Estate ROI Tool", layout="wide")
+st.title("🏠 Real Estate Investment Analyzer")
 
-st.title("🏘️ Real Estate ROI Analyzer")
-st.markdown("Analyze, compare, and export your property investments.")
+# Inputs
+st.sidebar.header("📥 Enter Property Details")
+location = st.sidebar.text_input("Enter Property Location", "Islamabad, Pakistan")
+purchase_price = st.sidebar.number_input("Purchase Price ($)", value=100000)
+monthly_rent = st.sidebar.number_input("Monthly Rent ($)", value=1000)
+expenses = st.sidebar.number_input("Monthly Expenses ($)", value=300)
+duration_years = st.sidebar.slider("Investment Duration (Years)", 1, 30, 10)
 
-st.subheader("🏠 Property #1")
-col1, col2 = st.columns(2)
-with col1:
-    price1 = st.number_input("Price ($)", key="p1", value=300000)
-    rent1 = st.number_input("Expected Rent ($/mo)", key="r1", value=2500)
-    down1 = st.number_input("Downpayment ($)", key="d1", value=60000)
-with col2:
-    exp1 = st.number_input("Annual Expenses ($)", key="e1", value=8000)
-    loc1 = st.text_input("Location", key="l1", value="Austin, TX")
-    sqft1 = st.number_input("Size (sqft)", key="s1", value=1200)
+# Currency selection
+rates = get_conversion_rates("USD")
+currency = st.sidebar.selectbox("Convert to Currency", list(rates.keys()))
+conversion_rate = rates.get(currency, 1)
 
+# ROI Calculation
+total_income = monthly_rent * 12 * duration_years
+total_expense = expenses * 12 * duration_years
+net_profit = total_income - total_expense
+roi = (net_profit / purchase_price) * 100
+converted_profit = net_profit * conversion_rate
+converted_price = purchase_price * conversion_rate
 
-with st.expander("Compare With Property #2"):
-    col3, col4 = st.columns(2)
-    with col3:
-        price2 = st.number_input("Price ($)", key="p2", value=280000)
-        rent2 = st.number_input("Expected Rent ($/mo)", key="r2", value=2400)
-        down2 = st.number_input("Downpayment ($)", key="d2", value=56000)
-    with col4:
-        exp2 = st.number_input("Annual Expenses ($)", key="e2", value=7500)
-        loc2 = st.text_input("Location", key="l2", value="Tulsa, OK")
-        sqft2 = st.number_input("Size (sqft)", key="s2", value=1100)
+# Display ROI
+st.metric("Total ROI (%)", f"{roi:.2f}%")
+st.metric("Net Profit (Converted)", f"{converted_profit:.2f} {currency}")
 
-if st.button("Run Analysis"):
-    result1 = real_estate_analysis(price1, rent1, exp1, down1, loc1, sqft1)
-    result2 = real_estate_analysis(price2, rent2, exp2, down2, loc2, sqft2)
+# PDF Report
+if st.button("📄 Generate PDF Report"):
+    href = generate_pdf(purchase_price, roi, location)
+    st.markdown(href, unsafe_allow_html=True)
 
-    st.success("✅ Analysis Complete!")
+# Geocode & Map
+lat, lon = geocode_location(location)
+if lat and lon:
+    st.subheader("🗺 Property Location Map")
+    m = folium.Map(location=[lat, lon], zoom_start=13, tiles=f"https://maps.geoapify.com/v1/tile/osm-carto/{{z}}/{{x}}/{{y}}.png?apiKey={GEOAPIFY_API_KEY}", attr="Geoapify")
+    folium.Marker([lat, lon], popup=location).add_to(m)
+    st_folium(m, width=700, height=500)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("📍 Property 1 Results")
-        for k, v in result1.items():
-            st.write(f"**{k}**: {v}")
-    with col2:
-        st.subheader("📍 Property 2 Results")
-        for k, v in result2.items():
-            st.write(f"**{k}**: {v}")
+# Upload CSV
+st.subheader("📁 Upload Real Estate Dataset")
+uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    st.write("Sample Data:", df.head())
 
-    
-    if "history" not in st.session_state:
-        st.session_state["history"] = []
-    st.session_state["history"].append(result1)
-
-    
-    pdf = generate_pdf(result1)
-    st.download_button("📄 Download PDF Report for Property 1", data=pdf, file_name="investment_report.pdf")
-
-
-st.subheader("📁 Upload CSV of Properties")
-csv_file = st.file_uploader("Upload CSV", type="csv")
-if csv_file:
-    df = pd.read_csv(csv_file)
-    st.write("Uploaded Data:", df)
-    st.subheader("📊 Analysis Results")
-    for index, row in df.iterrows():
-        res = real_estate_analysis(
-            row["price"], row["expected_rent"], row["annual_expenses"],
-            row["downpayment"], row["location"], row["sqft"]
-        )
-        st.write(f"**Property {index+1}:**")
-        st.json(res)
-
-
-st.subheader("📧 Stay Connected")
-with st.form("contact_form 1"):
-    email = st.text_input("Enter your email to get reports or updates")
-    submitted = st.form_submit_button("Submit")
-    if submitted:
-        st.success("Thanks! We'll be in touch via email.")
-
-
-if st.button("📜 Show Past Property Analyses"):
-    if "history" in st.session_state:
-        for i, h in enumerate(st.session_state["history"]):
-            st.write(f"🔹 Past Analysis #{i+1}:")
-            st.json(h)
+    # Visuals
+    st.subheader("📊 Data Visualizations")
+    numeric_cols = df.select_dtypes(include='number').columns.tolist()
+    if numeric_cols:
+        x_col = st.selectbox("X-axis", numeric_cols)
+        y_col = st.selectbox("Y-axis", numeric_cols, index=1)
+        fig, ax = plt.subplots()
+        sns.scatterplot(data=df, x=x_col, y=y_col, ax=ax)
+        st.pyplot(fig)
     else:
-        st.info("No past analysis found yet.")
-    
-st.header("📬 Contact Me")
-
-with st.form(key='contact_form 2'):
-    email = st.text_input("Your Email")
-    message = st.text_area("Your Message")
-    submit_button = st.form_submit_button("Submit")
-
-    if submit_button:
-        if email and message:
-            st.success("✅ Thanks for reaching out! I'll get back to you soon.")
-            # (Optional) You can save this data later or send via email
-        else:
-            st.error("❗ Please fill in both email and message fields.")
-
+        st.warning("No numeric columns found for plotting.")
 
