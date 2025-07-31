@@ -1,11 +1,10 @@
 streamlit
-matplotlib
-fpdf
+folium
+streamlit-folium
 pandas
-requests
-geopy
-plotly
-openpyxl
+matplotlib
 seaborn
+fpdf
+requests
 
 
