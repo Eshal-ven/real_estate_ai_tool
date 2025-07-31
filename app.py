@@ -108,18 +108,53 @@ with tab1:
     lat, lon = geocode_location(location)
     if lat and lon:
         st.subheader("🗺 Property Location Map")
-        m = folium.Map(location=[lat, lon], zoom_start=13, tiles=f"https://maps.geoapify.com/v1/tile/osm-carto/{{z}}/{{x}}/{{y}}.png?apiKey={GEOAPIFY_API_KEY}", attr="Geoapify")
+        m = folium.Map(location=[lat, lon], zoom_start=13,
+                       tiles=f"https://maps.geoapify.com/v1/tile/osm-carto/{{z}}/{{x}}/{{y}}.png?apiKey={GEOAPIFY_API_KEY}",
+                       attr="Geoapify")
         folium.Marker([lat, lon], popup=location).add_to(m)
         st_folium(m, width=700, height=500)
 
 # --- TAB 2: Compare Properties ---
 with tab2:
-    st.subheader("Compare Two Properties")
+    st.subheader("📊 Compare Two Properties Side-by-Side")
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        st.markdown("### Property 1")
+        st.markdown("### 🏘 Property 1")
         p1_price = st.number_input("P1 Purchase Price ($)", value=120000, key='p1_price')
-        p1_rent = st.number_input("P1 Rent ($)", value=1200, key='p1_rent')
-        p1_exp = st.number_input("P1 Expenses ($)", value=400, key='p1_exp')
-        p1_years = st.slider("P1 Years", 1, 30, 10)
+        p1_rent = st.number_input("P1 Monthly Rent ($)", value=1200, key='p1_rent')
+        p1_exp = st.number_input("P1 Monthly Expenses ($)", value=400, key='p1_exp')
+        p1_years = st.slider("P1 Investment Years", 1, 30, 10, key='p1_years')
+        p1_down = st.slider("P1 Downpayment (%)", 0, 100, 20, key='p1_down')
+
+    with col2:
+        st.markdown("### 🏘 Property 2")
+        p2_price = st.number_input("P2 Purchase Price ($)", value=150000, key='p2_price')
+        p2_rent = st.number_input("P2 Monthly Rent ($)", value=1500, key='p2_rent')
+        p2_exp = st.number_input("P2 Monthly Expenses ($)", value=500, key='p2_exp')
+        p2_years = st.slider("P2 Investment Years", 1, 30, 10, key='p2_years')
+        p2_down = st.slider("P2 Downpayment (%)", 0, 100, 25, key='p2_down')
+
+    # Analyze both
+    p1_down_amt, p1_profit, p1_roi = analyze_property(p1_price, p1_rent, p1_exp, p1_years, p1_down)
+    p2_down_amt, p2_profit, p2_roi = analyze_property(p2_price, p2_rent, p2_exp, p2_years, p2_down)
+
+    st.markdown("### 📈 ROI Comparison Chart")
+    comparison_df = pd.DataFrame({
+        "Property": ["Property 1", "Property 2"],
+        "ROI (%)": [p1_roi, p2_roi],
+        "Net Profit ($)": [p1_profit, p2_profit],
+        "Downpayment ($)": [p1_down_amt, p2_down_amt]
+    })
+
+    st.dataframe(comparison_df)
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.barplot(x="Property", y="ROI (%)", data=comparison_df, palette="viridis", ax=ax)
+    ax.set_title("ROI Comparison")
+    st.pyplot(fig)
+
+# --- TAB 3: Contact ---
+with tab3:
+    st.header("📬 Contact the Developer")
+    st.markdown("Feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/eshal-fatima-) or email me at `eshlfatimah@email.com`.")
