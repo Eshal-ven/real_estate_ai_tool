@@ -122,4 +122,4 @@ with tab2:
         p1_price = st.number_input("P1 Purchase Price ($)", value=120000, key='p1_price')
         p1_rent = st.number_input("P1 Rent ($)", value=1200, key='p1_rent')
         p1_exp = st.number_input("P1 Expenses ($)", value=400, key='p1_exp')
-        p1_years = st.slider("P1 Years",
+        p1_years = st.slider("P1 Years", 1, 30, 10)
