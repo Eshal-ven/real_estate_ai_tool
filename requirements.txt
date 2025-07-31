@@ -1,4 +1,11 @@
 streamlit
 matplotlib
 fpdf
+pandas
+requests
+geopy
+plotly
+openpyxl
+seaborn
+
 
