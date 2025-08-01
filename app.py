@@ -10,13 +10,13 @@ from fpdf import FPDF
 from io import BytesIO
 import base64
 
-# ---------------- API KEYS ----------------
-EXCHANGE_API_KEY = "6765835acf37d023c7ca3f8a"
-OPENCAGE_API_KEY = "b7ff050f08204f8abb29020b73fffdf5"
-GEOAPIFY_API_KEY = "17c2750503544d329fd46895ff1e6ede"
+# ---------------- API KEYS FROM SECRETS ----------------
+EXCHANGE_API_KEY = st.secrets["api"]["currency_key"]
+OPENCAGE_API_KEY = st.secrets["api"]["opencage_key"]
+GEOAPIFY_API_KEY = st.secrets["api"]["geoapify_key"]
 
 # ---------------- CURRENCY CONVERSION ----------------
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_conversion_rates(base="USD"):
     url = f"https://v6.exchangerate-api.com/v6/{EXCHANGE_API_KEY}/latest/{base}"
     try:
@@ -24,8 +24,8 @@ def get_conversion_rates(base="USD"):
         response.raise_for_status()
         return response.json().get("conversion_rates", {})
     except:
-        st.warning("Using fallback currency rates.")
-        return {"USD": 1, "PKR": 278, "EUR": 0.91, "GBP": 0.78}
+        st.warning("⚠️ Using fallback currency rates.")
+        return {"USD": 1, "PKR": 283.75 , "EUR": 0.88 , "GBP": 0.76 }
 
 # ---------------- GEOCODING LOCATION ----------------
 def geocode_location(location):
@@ -38,7 +38,7 @@ def geocode_location(location):
             geometry = data['results'][0]['geometry']
             return geometry['lat'], geometry['lng']
     except:
-        st.error("Failed to geocode the location.")
+        st.error("❌ Failed to geocode location.")
         return None, None
 
 # ---------------- PDF GENERATION ----------------
@@ -50,13 +50,14 @@ def generate_pdf(investment, roi, location):
     pdf.ln(10)
     pdf.multi_cell(0, 10, f"Investment Amount: {investment}\nLocation: {location}\nROI: {roi:.2f}%")
     buffer = BytesIO()
-    pdf.output(buffer)
+    pdf_output = pdf.output(dest='S').encode('latin1')  # Fixed line
+    buffer.write(pdf_output)
     buffer.seek(0)
     b64 = base64.b64encode(buffer.read()).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="report.pdf">Download PDF Report</a>'
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="report.pdf">📄 Download PDF Report</a>'
     return href
 
-# ---------------- ROI Analysis Function ----------------
+# ---------------- ROI ANALYSIS FUNCTION ----------------
 def analyze_property(purchase_price, monthly_rent, expenses, years, downpayment_pct):
     downpayment = (downpayment_pct / 100) * purchase_price
     total_income = monthly_rent * 12 * years
@@ -135,7 +136,6 @@ with tab2:
         p2_years = st.slider("P2 Investment Years", 1, 30, 10, key='p2_years')
         p2_down = st.slider("P2 Downpayment (%)", 0, 100, 25, key='p2_down')
 
-    # Analyze both
     p1_down_amt, p1_profit, p1_roi = analyze_property(p1_price, p1_rent, p1_exp, p1_years, p1_down)
     p2_down_amt, p2_profit, p2_roi = analyze_property(p2_price, p2_rent, p2_exp, p2_years, p2_down)
 
@@ -157,4 +157,7 @@ with tab2:
 # --- TAB 3: Contact ---
 with tab3:
     st.header("📬 Contact the Developer")
-    st.markdown("Feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/eshal-fatima-) or email me at `eshlfatimah@email.com`.")
+    st.markdown("Feel free to connect on [LinkedIn](https://www.linkedin.com/in/eshal-fatima-) or email me at `eshlfatimah@gmail.com`.")
+
+
+
